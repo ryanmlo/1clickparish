@@ -13,7 +13,7 @@ from typing import Dict, Match
 # Get the directory where this script is located
 SCRIPT_DIR: Path = Path(__file__).resolve().parent
 
-PARISH_JSON_PATH: Path = SCRIPT_DIR / "assets/parish.json" # fallback only in prod, should ordinarily receive json object from form
+PARISH_JSON_PATH: Path = SCRIPT_DIR / "assets/parish.json"  # fallback only in prod, should ordinarily receive json object from form
 PARISH_TEMPLATE_PATH: Path = SCRIPT_DIR / "assets/templates/default_template/template.html"
 SOURCE_CSS_PATH: Path = SCRIPT_DIR / "assets/templates/default_template/style.css"
 
@@ -33,6 +33,7 @@ REQUIRED_FIELDS = [
     "contact_email",
 ]
 
+
 @dataclass
 class ParishRecord:
     parish_name: str
@@ -43,18 +44,23 @@ class ParishRecord:
     contact_phone: str
     contact_email: str
 
+
 # === Helpers ==================================================================
 
 PLACEHOLDER_PATTERN = re.compile(r"{{\s*([a-zA-Z0-9_]+)\s*}}")
+
 
 def obfuscate_email_for_display(email_address: str) -> str:
     """
     Replace '@' and '.' with numeric HTML entities to slightly deter bots,
     while remaining clickable for users (we still use the real address in mailto:).
     """
+
     def ent(ch: str) -> str:
         return f"&#{ord(ch)};"
+
     return "".join(ent(c) if c in {"@", "."} else c for c in email_address)
+
 
 def escape_text_to_paragraphs_html(plain_text: str) -> str:
     """
@@ -67,18 +73,21 @@ def escape_text_to_paragraphs_html(plain_text: str) -> str:
     paragraphs = [p.replace("\n", "<br>") for p in re.split(r"\n\s*\n", escaped)]
     return "<p>" + "</p><p>".join(paragraphs) + "</p>"
 
+
 def render_template_with_context(template_html: str, template_context: Dict[str, str]) -> str:
     """
     Replace {{placeholders}} using values from template_context.
     Raises KeyError if the template uses a variable not present in the context.
     """
-    def _replace(match: Match[str]) -> str:   
+
+    def _replace(match: Match[str]) -> str:
         key = match.group(1)
         if key not in template_context:
             raise KeyError(f"Missing template variable: {key}")
         return str(template_context[key])
 
-    return PLACEHOLDER_PATTERN.sub(_replace, template_html) 
+    return PLACEHOLDER_PATTERN.sub(_replace, template_html)
+
 
 def load_parish_record() -> ParishRecord:
     """Read and validate the single parish JSON file, returning a ParishRecord."""
@@ -96,7 +105,9 @@ def load_parish_record() -> ParishRecord:
         contact_email=raw["contact_email"].strip(),
     )
 
+
 # === Build ====================================================================
+
 
 def main() -> None:
     # Hard fail if inputs are not present
@@ -106,7 +117,7 @@ def main() -> None:
 
     parish_record: ParishRecord = load_parish_record()
     parish_template_html: str = PARISH_TEMPLATE_PATH.read_text(encoding="utf-8")
-    build_timestamp_utc: str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC") # type: ignore
+    build_timestamp_utc: str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")  # type: ignore
 
     template_context: Dict[str, str] = {
         # Escaped scalars
@@ -115,11 +126,9 @@ def main() -> None:
         "parish_address": html.escape(parish_record.parish_address),
         "contact_phone": html.escape(parish_record.contact_phone),
         "contact_email": html.escape(parish_record.contact_email),
-
         # Formatted blocks
         "mass_html": escape_text_to_paragraphs_html(parish_record.mass_times),
         "announcements_html": escape_text_to_paragraphs_html(parish_record.announcements),
-
         # Helpers/meta
         "contact_email_display": obfuscate_email_for_display(parish_record.contact_email),
         "built_at": build_timestamp_utc,
@@ -132,6 +141,7 @@ def main() -> None:
     shutil.copyfile(SOURCE_CSS_PATH, OUTPUT_CSS_PATH)
 
     print(f"Wrote {OUTPUT_HTML_PATH} and {OUTPUT_CSS_PATH}")
+
 
 if __name__ == "__main__":
     main()
