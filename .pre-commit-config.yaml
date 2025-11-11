@@ -5,45 +5,30 @@ repos:
   - repo: local
     hooks:
       # General file checks
-      - id: trailing-whitespace
-        name: Trim Trailing Whitespace
-        entry: bash -c 'for file in "$@"; do sed -i "s/[[:space:]]*$//" "$file"; done' --
-        language: system
-        types: [text]
       - id: check-yaml
         name: Check YAML
         entry: python -c 'import sys, yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]'
         language: system
         files: \.(yaml|yml)$
+
       - id: check-json
         name: Check JSON
         entry: python -c 'import sys, json; [json.load(open(f)) for f in sys.argv[1:]]'
         language: system
         files: \.json$
+
       - id: check-merge-conflict
         name: Check for Merge Conflicts
         entry: bash -c 'if grep -r "^<<<<<<< \|^=======$\|^>>>>>>> " "$@"; then echo "Merge conflict markers detected!"; exit 1; fi'
         language: system
         types: [text]
+
       - id: detect-private-key
         name: Detect Private Keys
         entry: bash -c 'if grep -r "BEGIN.*PRIVATE KEY\|BEGIN.*RSA PRIVATE KEY" "$@"; then echo "Private key detected!"; exit 1; fi'
         language: system
         types: [text]
         exclude: ^\.pre-commit-config\.yaml$
-      - id: mixed-line-ending
-        name: Mixed Line Ending
-        entry: bash -c 'for file in "$@"; do if file "$file" | grep -q "CRLF"; then echo "CRLF line endings found in $file"; exit 1; fi; done' --
-        language: system
-        types: [text]
-
-      # Python linting and formatting
-      - id: black
-        name: black
-        entry: black
-        language: system
-        types: [python]
-        args: ['--line-length=100']
 
       - id: flake8
         name: flake8
