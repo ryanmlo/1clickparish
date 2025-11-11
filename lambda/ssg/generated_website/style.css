@@ -1,0 +1,82 @@
+:root {
+    --mx: 720px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    line-height: 1.55;
+    color: #111;
+}
+
+header {
+    background: #f8f8f8;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.container {
+    max-width: var(--mx);
+    margin: 0 auto;
+    padding: 1.25rem;
+}
+
+h1 {
+    font-size: clamp(1.6rem, 2vw + 1rem, 2.2rem);
+    margin: 0.2rem 0 0.5rem;
+}
+
+h2 {
+    font-size: 1.25rem;
+    margin: 1.25rem 0 0.5rem;
+}
+
+.card {
+    border: 1px solid #e6e6e6;
+    border-radius: 12px;
+    padding: 1rem;
+    background: #fff;
+}
+
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 700px) {
+    .grid-2 {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+a {
+    color: #0b60d3;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+footer {
+    margin-top: 2rem;
+    font-size: .9rem;
+    color: #555;
+}
+
+.badge {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border: 1px solid #ddd;
+    border-radius: 999px;
+    font-size: .8rem;
+    color: #444;
+    background: #fafafa;
+}
+
+address {
+    font-style: normal;
+}

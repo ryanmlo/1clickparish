@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{parish_name}} – {{parish_city}}</title>
+<meta name="description" content="{{parish_name}} in {{parish_city}}. Mass times, address, and announcements.">
+<link rel="stylesheet" href="style.css">
+
+<header>
+  <div class="container">
+    <h1>{{parish_name}}</h1>
+    <div class="badge">{{parish_city}}</div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="grid grid-2">
+    <section class="card">
+      <h2>Mass Times</h2>
+      {{mass_html}}
+    </section>
+    <section class="card">
+      <h2>Announcements</h2>
+      {{announcements_html}}
+    </section>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:1rem">
+    <section class="card">
+      <h2>Address</h2>
+      <address>{{parish_address}}</address>
+    </section>
+    <section class="card">
+      <h2>Contact</h2>
+      <p>Phone: <a href="tel:{{contact_phone}}">{{contact_phone}}</a><br>
+         Email: <a href="mailto:{{contact_email}}">{{contact_email_display}}</a></p>
+    </section>
+  </div>
+
+  <footer>Last updated {{built_at}}</footer>
+</main>
+</html>
