@@ -36,31 +36,34 @@ export class IacStack extends Stack {
       cognitoDomain: { domainPrefix },
     });
 
-    const secretGoogle = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret", "1clickparish/google").secretValue
-    const secretFacebook = Secret.fromSecretNameV2(this, "cognitoFacebookClientSecret", "1clickparish/facebook").secretValue
+    const googleClientSecret = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret", "1clickparish/google").secretValue
 
     const googleProvider = new UserPoolIdentityProviderGoogle(this, 'Google', {
       clientId: 'google-client-id',
       userPool: pool,
-      clientSecretValue: secretGoogle,
+      clientSecretValue: googleClientSecret,
       attributeMapping: {
         email: ProviderAttribute.GOOGLE_EMAIL,
         givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
         familyName: ProviderAttribute.GOOGLE_FAMILY_NAME,
         fullname: ProviderAttribute.GOOGLE_NAME
       },
+      scopes: ['profile', 'email', 'openid']
     });
+
+    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/facebook:SecretString:clientSecret}}';
 
     const facebookProvider = new UserPoolIdentityProviderFacebook(this, 'Facebook', {
       clientId: 'facebook-client-id',
       userPool: pool,
-      clientSecret: secretFacebook.toString(),
+      clientSecret: facebookClientSecret,
       attributeMapping: {
         email: ProviderAttribute.FACEBOOK_EMAIL,
         givenName: ProviderAttribute.FACEBOOK_FIRST_NAME,
         familyName: ProviderAttribute.FACEBOOK_LAST_NAME,
         fullname: ProviderAttribute.FACEBOOK_NAME
       },
+      scopes: ['profile', 'email', 'openid']
     });
 
     const client = pool.addClient('1clickparish-app-client', {
