@@ -1,16 +1,85 @@
-import * as cdk from 'aws-cdk-lib';
+import { Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { ProviderAttribute, StringAttribute, UserPool, UserPoolClientIdentityProvider, UserPoolIdentityProviderFacebook, UserPoolIdentityProviderGoogle } from 'aws-cdk-lib/aws-cognito';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 
-export class IacStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+export class IacStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+    const pool = new UserPool(this, "UserPool", { 
+      signInCaseSensitive: false,
+      standardAttributes: {
+        email: {
+          required: true,
+          mutable: false,
+        },
+        fullname: {
+          required: false,
+          mutable: true,
+        },
+        givenName: {
+          required: false,
+          mutable: true,
+        },
+        familyName: {
+          required: false,
+          mutable: true,
+        },
+      },
+      customAttributes: {
+        'websiteId': new StringAttribute( { minLen: 4, maxLen: 30, mutable: true } )
+      }
+    });
 
-    // The code that defines your stack goes here
+    const domainPrefix = `1clickparish-auth`;
+    const domain = pool.addDomain("CognitoDomain", {
+      cognitoDomain: { domainPrefix },
+    });
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'IacQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    const googleClientSecret = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret", "1clickparish/google").secretValue
+
+    const googleProvider = new UserPoolIdentityProviderGoogle(this, 'Google', {
+      clientId: 'google-client-id',
+      userPool: pool,
+      clientSecretValue: googleClientSecret,
+      attributeMapping: {
+        email: ProviderAttribute.GOOGLE_EMAIL,
+        givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
+        familyName: ProviderAttribute.GOOGLE_FAMILY_NAME,
+        fullname: ProviderAttribute.GOOGLE_NAME
+      },
+      scopes: ['profile', 'email', 'openid']
+    });
+
+    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/facebook:SecretString:clientSecret}}';
+
+    const facebookProvider = new UserPoolIdentityProviderFacebook(this, 'Facebook', {
+      clientId: 'facebook-client-id',
+      userPool: pool,
+      clientSecret: facebookClientSecret,
+      attributeMapping: {
+        email: ProviderAttribute.FACEBOOK_EMAIL,
+        givenName: ProviderAttribute.FACEBOOK_FIRST_NAME,
+        familyName: ProviderAttribute.FACEBOOK_LAST_NAME,
+        fullname: ProviderAttribute.FACEBOOK_NAME
+      },
+      scopes: ['profile', 'email', 'openid']
+    });
+
+    const client = pool.addClient('1clickparish-app-client', {
+      authFlows: {
+        userPassword: true,
+      },
+      supportedIdentityProviders: [
+        UserPoolClientIdentityProvider.GOOGLE,
+        UserPoolClientIdentityProvider.FACEBOOK,
+        UserPoolClientIdentityProvider.COGNITO,
+      ],
+      authSessionValidity: Duration.minutes(15),
+      accessTokenValidity: Duration.minutes(60),
+      idTokenValidity: Duration.minutes(60),
+      refreshTokenValidity: Duration.days(30),
+    });
+    client.node.addDependency(googleProvider,facebookProvider,domain);
   }
 }

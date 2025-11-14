@@ -8,19 +8,48 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "lint:js": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "format:js": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "format:py": "black .",
+    "format:all": "npm run format:js && npm run format:py",
+    "lint": "eslint . && black .",
+    "lint:fix": "eslint . --fix && prettier --write . && black .",
+    "prepare": "lint-staged"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/bun": "latest",
     "@types/jest": "^29.5.14",
     "@types/node": "22.7.9",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
     "aws-cdk": "2.1014.0",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "jest": "^29.7.0",
+    "jiti": "^2.6.1",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "~5.6.3"
+    "typescript": "~5.6.3",
+    "typescript-eslint": "^8.46.4"
   },
   "dependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
     "aws-cdk-lib": "2.194.0",
     "constructs": "^10.0.0"
+  },
+  "private": true,
+  "lint-staged": {
+    "*.{ts,js}": "eslint --cache --fix",
+    "*.{ts,js,css,md}": "prettier --write",
+    "*.js": "eslint --cache --fix",
+    "*.{js,css,md}": "prettier --write",
+    "*.py": [
+      "black",
+      "git add"
+    ]
   }
 }
