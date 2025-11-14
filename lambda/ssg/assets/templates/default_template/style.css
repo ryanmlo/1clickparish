@@ -1,5 +1,6 @@
 :root {
     --mx: 720px;
+    --primary-color: {{PRIMARY_COLOR}};
 }
 
 * {
@@ -25,6 +26,7 @@ header {
 }
 
 h1 {
+    color: var(--primary-color);
     font-size: clamp(1.6rem, 2vw + 1rem, 2.2rem);
     margin: 0.2rem 0 0.5rem;
 }
