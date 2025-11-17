@@ -62,7 +62,7 @@ export class IacStack extends Stack {
         },
       },
       customAttributes: {
-        'websiteId': new StringAttribute( { minLen: 4, maxLen: 30, mutable: true } ),
+        'hd': new StringAttribute( { mutable: true } ),
       }
     });
 
