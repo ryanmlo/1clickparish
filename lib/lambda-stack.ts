@@ -46,6 +46,7 @@ export class LambdaStack extends Stack{
             }),
         );
 
+        bucketAssetDeployment.node.addDependency(lambdaS3Bucket);
         bucketLambdaDeployment.node.addDependency(lambdaS3Bucket);
         lambdaFunction.node.addDependency(bucketLambdaDeployment);
 

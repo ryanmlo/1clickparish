@@ -7,6 +7,10 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Match
+import boto3
+
+# === AWS ====================================================================
+s3 = boto3.client('s3')
 
 # === Input/Output paths (config) ============================================
 
@@ -114,10 +118,30 @@ def load_parish_record() -> ParishRecord:
     )
 
 
+def get_aws_s3_bucket_name():
+    account_id = boto3.client('sts').get_caller_identity().get('Account')
+    bucket_name = f'lambda-s3-bucket-{account_id}'
+    return bucket_name
+
+
+def get_aws_s3_html():
+    bucket_name = get_aws_s3_bucket_name()
+    htmlObject = s3.get_object(Bucket=bucket_name, Key='lambda/ssg/assets/template.html')
+    return htmlObject
+
+def get_aws_s3_css():
+    bucket_name = get_aws_s3_bucket_name()
+    cssObject = s3.get_object(Bucket=bucket_name, Key='lambda/ssg/assets/style.css')
+    return cssObject
+
+
+
 # === Build ====================================================================
 
 
 def main() -> None:
+    htmlObject = get_aws_s3_html()
+    cssObject = get_aws_s3_css()
     # Hard fail if inputs are not present
     for required_path in (PARISH_JSON_PATH, PARISH_TEMPLATE_PATH, SOURCE_CSS_PATH):
         if not required_path.exists():
@@ -129,11 +153,11 @@ def main() -> None:
 
     template_context: Dict[str, str] = {
         # Escaped scalars
-        "parish_name": html.escape(parish_record.parish_name),
-        "parish_city": html.escape(parish_record.parish_city),
-        "parish_address": html.escape(parish_record.parish_address),
-        "contact_phone": html.escape(parish_record.contact_phone),
-        "contact_email": html.escape(parish_record.contact_email),
+        "parish_name": htmlObject.html.escape(parish_record.parish_name),
+        "parish_city": htmlObject.html.escape(parish_record.parish_city),
+        "parish_address": htmlObject.html.escape(parish_record.parish_address),
+        "contact_phone": htmlObject.html.escape(parish_record.contact_phone),
+        "contact_email": htmlObject.html.escape(parish_record.contact_email),
         # Formatted blocks
         "mass_html": escape_text_to_paragraphs_html(parish_record.mass_times),
         "announcements_html": escape_text_to_paragraphs_html(
