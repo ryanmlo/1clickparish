@@ -96,7 +96,10 @@ export class IacStack extends Stack {
         email: ProviderAttribute.GOOGLE_EMAIL,
         givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
         familyName: ProviderAttribute.GOOGLE_FAMILY_NAME,
-        fullname: ProviderAttribute.GOOGLE_NAME
+        fullname: ProviderAttribute.GOOGLE_NAME,
+        custom: {
+          hd: ProviderAttribute.other('hd')
+        },
       },
       scopes: ['profile', 'email', 'openid']
     });
