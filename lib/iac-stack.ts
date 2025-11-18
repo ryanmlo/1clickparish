@@ -154,7 +154,7 @@ export class IacStack extends Stack {
     // Lambdas
 
     const preSignUp = new Function(this, 'PreSignUp', {
-      runtime: Runtime.NODEJS_LATEST,
+      runtime: Runtime.PYTHON_3_13,
       handler: 'index.handler',
       code: Code.fromAsset("lambda/av"),
       environment: {
