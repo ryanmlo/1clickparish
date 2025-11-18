@@ -114,7 +114,7 @@ export class IacStack extends Stack {
         familyName: ProviderAttribute.FACEBOOK_LAST_NAME,
         fullname: ProviderAttribute.FACEBOOK_NAME
       },
-      scopes: ['profile', 'email', 'openid']
+      scopes: ['profile', 'email']
     });
 
     const client1 = pool1.addClient('1clickparish-app-client', {
