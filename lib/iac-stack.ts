@@ -1,5 +1,5 @@
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { ProviderAttribute, StringAttribute, UserPool, UserPoolClientIdentityProvider, UserPoolIdentityProviderFacebook, UserPoolIdentityProviderGoogle } from 'aws-cdk-lib/aws-cognito';
+import { ProviderAttribute, StringAttribute, UserPool, UserPoolClientIdentityProvider, UserPoolIdentityProviderFacebook, UserPoolIdentityProviderGoogle, UserPoolOperation } from 'aws-cdk-lib/aws-cognito';
 import { Runtime, Function, Code } from 'aws-cdk-lib/aws-lambda';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
@@ -7,6 +7,9 @@ import { Construct } from 'constructs';
 export class IacStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+
+    //  User Pools
+
     const pool1 = new UserPool(this, "Pool1", { 
       signInCaseSensitive: false,
       standardAttributes: {
@@ -32,17 +35,8 @@ export class IacStack extends Stack {
       }
     });
 
-    const preSignUp = new Function(this, 'PreSignUp', {
-      runtime: Runtime.NODEJS_LATEST,
-      handler: 'index.handler',
-      code: Code.fromAsset("lambda/av"),
-    });
-
     const pool2 = new UserPool(this, "Pool2", { 
       signInCaseSensitive: false,
-      lambdaTriggers: {
-        preSignUp: preSignUp
-      },
       standardAttributes: {
         email: {
           required: true,
@@ -66,12 +60,20 @@ export class IacStack extends Stack {
       }
     });
 
+    // Domains
+
     const domainPrefix = `1clickparish-auth`;
     const domain = pool1.addDomain("CognitoDomain", {
       cognitoDomain: { domainPrefix },
     });
 
+    // Client Secrets
+
     const googleClientSecret1 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret1", "1clickparish/bullfrog").secretValue
+    const googleClientSecret2 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret2", "1clickparish/toadcow").secretValue
+    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/calftadpole:SecretString:clientSecret}}';
+
+    // User Pool Identity Providers and dependencies
 
     const googleProvider1 = new UserPoolIdentityProviderGoogle(this, 'Google1', {
       clientId: 'google-client-id',
@@ -86,8 +88,6 @@ export class IacStack extends Stack {
       scopes: ['profile', 'email', 'openid']
     });
 
-    const googleClientSecret2 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret2", "1clickparish/toadcow").secretValue
-
     const googleProvider2 = new UserPoolIdentityProviderGoogle(this, 'Google2', {
       clientId: 'google-client-id',
       userPool: pool2,
@@ -100,8 +100,6 @@ export class IacStack extends Stack {
       },
       scopes: ['profile', 'email', 'openid']
     });
-
-    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/calftadpole:SecretString:clientSecret}}';
 
     const facebookProvider = new UserPoolIdentityProviderFacebook(this, 'Facebook', {
       clientId: 'facebook-client-id',
@@ -116,7 +114,7 @@ export class IacStack extends Stack {
       scopes: ['profile', 'email', 'openid']
     });
 
-    const client = pool1.addClient('1clickparish-app-client', {
+    const client1 = pool1.addClient('1clickparish-app-client', {
       authFlows: {
         userPassword: true,
       },
@@ -130,6 +128,40 @@ export class IacStack extends Stack {
       idTokenValidity: Duration.minutes(60),
       refreshTokenValidity: Duration.days(30),
     });
-    client.node.addDependency(googleProvider1,googleProvider2,facebookProvider,domain);
+
+    const client2 = pool2.addClient('1clickparish-app-client-2', {
+      authFlows: {
+        userPassword: false
+      },
+      supportedIdentityProviders: [ UserPoolClientIdentityProvider.GOOGLE ],
+      authSessionValidity: Duration.minutes(15),
+      accessTokenValidity: Duration.minutes(15),
+      idTokenValidity: Duration.minutes(15),
+      refreshTokenValidity: Duration.days(14)
+    });
+
+    client1.node.addDependency(googleProvider1, facebookProvider, domain);
+    client2.node.addDependency(googleProvider2, domain);
+
+    // Client IDs
+
+    // const clientId = client.userPoolClientId;
+    const clientId2 = client2.userPoolClientId;
+
+    // Lambdas
+
+    const preSignUp = new Function(this, 'PreSignUp', {
+      runtime: Runtime.NODEJS_LATEST,
+      handler: 'index.handler',
+      code: Code.fromAsset("lambda/av"),
+      environment: {
+        COGNITO_CLIENT_ID: clientId2
+      },
+    });
+
+    // Triggers
+
+    pool2.addTrigger(UserPoolOperation.PRE_SIGN_UP, preSignUp)
+
   }
 }
