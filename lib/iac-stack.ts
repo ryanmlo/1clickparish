@@ -1,12 +1,16 @@
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { ProviderAttribute, StringAttribute, UserPool, UserPoolClientIdentityProvider, UserPoolIdentityProviderFacebook, UserPoolIdentityProviderGoogle } from 'aws-cdk-lib/aws-cognito';
+import { OAuthScope, ProviderAttribute, StringAttribute, UserPool, UserPoolClientIdentityProvider, UserPoolIdentityProviderFacebook, UserPoolIdentityProviderGoogle, UserPoolOperation } from 'aws-cdk-lib/aws-cognito';
+import { Runtime, Function, Code } from 'aws-cdk-lib/aws-lambda';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 
 export class IacStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
-    const pool = new UserPool(this, "UserPool", { 
+
+    //  User Pools
+
+    const pool1 = new UserPool(this, "Pool1", { 
       signInCaseSensitive: false,
       standardAttributes: {
         email: {
@@ -31,17 +35,55 @@ export class IacStack extends Stack {
       }
     });
 
-    const domainPrefix = `1clickparish-auth`;
-    const domain = pool.addDomain("CognitoDomain", {
-      cognitoDomain: { domainPrefix },
+    const pool2 = new UserPool(this, "Pool2", { 
+      signInCaseSensitive: false,
+      standardAttributes: {
+        email: {
+          required: true,
+          mutable: false,
+        },
+        fullname: {
+          required: false,
+          mutable: true,
+        },
+        givenName: {
+          required: false,
+          mutable: true,
+        },
+        familyName: {
+          required: false,
+          mutable: true,
+        },
+      },
+      customAttributes: {
+        'hd': new StringAttribute( { mutable: true } ),
+      }
     });
 
-    const googleClientSecret = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret", "1clickparish/google").secretValue
+    // Domains
 
-    const googleProvider = new UserPoolIdentityProviderGoogle(this, 'Google', {
+    const domainPrefix1 = `1clickparish`;
+    const domainPrefix2 = `2clickparish`;
+    
+    const domain1 = pool1.addDomain("CognitoDomain", {
+      cognitoDomain: { domainPrefix: domainPrefix1 },
+    });
+    const domain2 = pool2.addDomain("CognitoDomain", {
+      cognitoDomain: { domainPrefix: domainPrefix2 },
+    });
+
+    // Client Secrets
+
+    const googleClientSecret1 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret1", "1clickparish/google").secretValue
+    const googleClientSecret2 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret2", "1clickparish/smackdog").secretValue
+    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/facebook:SecretString:clientSecret}}';
+
+    // User Pool Identity Providers and dependencies
+
+    const googleProvider1 = new UserPoolIdentityProviderGoogle(this, 'Google1', {
       clientId: 'google-client-id',
-      userPool: pool,
-      clientSecretValue: googleClientSecret,
+      userPool: pool1,
+      clientSecretValue: googleClientSecret1,
       attributeMapping: {
         email: ProviderAttribute.GOOGLE_EMAIL,
         givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
@@ -51,11 +93,25 @@ export class IacStack extends Stack {
       scopes: ['profile', 'email', 'openid']
     });
 
-    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/facebook:SecretString:clientSecret}}';
+    const googleProvider2 = new UserPoolIdentityProviderGoogle(this, 'Google2', {
+      clientId: 'google-2-client-id',
+      userPool: pool2,
+      clientSecretValue: googleClientSecret2,
+      attributeMapping: {
+        email: ProviderAttribute.GOOGLE_EMAIL,
+        givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
+        familyName: ProviderAttribute.GOOGLE_FAMILY_NAME,
+        fullname: ProviderAttribute.GOOGLE_NAME,
+        custom: {
+          'custom:hd': ProviderAttribute.other('hd')
+        },
+      },
+      scopes: ['profile', 'email', 'openid']
+    });
 
     const facebookProvider = new UserPoolIdentityProviderFacebook(this, 'Facebook', {
       clientId: 'facebook-client-id',
-      userPool: pool,
+      userPool: pool1,
       clientSecret: facebookClientSecret,
       attributeMapping: {
         email: ProviderAttribute.FACEBOOK_EMAIL,
@@ -63,10 +119,10 @@ export class IacStack extends Stack {
         familyName: ProviderAttribute.FACEBOOK_LAST_NAME,
         fullname: ProviderAttribute.FACEBOOK_NAME
       },
-      scopes: ['profile', 'email', 'openid']
+      scopes: ['profile', 'email']
     });
 
-    const client = pool.addClient('1clickparish-app-client', {
+    const client1 = pool1.addClient('1clickparish-app-client', {
       authFlows: {
         userPassword: true,
       },
@@ -80,6 +136,43 @@ export class IacStack extends Stack {
       idTokenValidity: Duration.minutes(60),
       refreshTokenValidity: Duration.days(30),
     });
-    client.node.addDependency(googleProvider,facebookProvider,domain);
+
+    const client2 = pool2.addClient('1clickparish-app-client-2', {
+      authFlows: {
+        userPassword: false
+      },
+      supportedIdentityProviders: [ UserPoolClientIdentityProvider.GOOGLE ],
+      authSessionValidity: Duration.minutes(15),
+      accessTokenValidity: Duration.minutes(15),
+      idTokenValidity: Duration.minutes(15),
+      refreshTokenValidity: Duration.days(14),
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes: [ OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE ],
+        callbackUrls: [ 'https://parish.inri.cc/org/callback' ],
+        logoutUrls: [ 'https://parish.inri.cc/' ]
+      }
+    });
+
+    client1.node.addDependency(googleProvider1, facebookProvider, domain1);
+    client2.node.addDependency(googleProvider2, domain2);
+
+    // Client IDs
+
+    // const clientId = client.userPoolClientId;
+    // const clientId2 = client2.userPoolClientId;
+
+    // Lambdas
+
+    const preSignUp = new Function(this, 'PreSignUp', {
+      runtime: Runtime.PYTHON_3_13,
+      handler: 'index.handler',
+      code: Code.fromAsset("lambda/av"),
+    });
+
+    // Triggers
+
+    pool2.addTrigger(UserPoolOperation.PRE_SIGN_UP, preSignUp)
+
   }
 }
