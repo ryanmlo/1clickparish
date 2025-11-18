@@ -8,4 +8,5 @@ def lambda_handler(event, context):
     if trigger != 'PreSignUp_ExternalProvider': return event
     if not hosted_domain or hosted_domain.lower() != DOMAIN_NAME.lower(): raise Exception(DEFAULT_EXCEPTION_MESSAGE)
     event['response']['autoVerifyEmail'] = True
+    event['response']['autoConfirmUser'] = True
     return event
