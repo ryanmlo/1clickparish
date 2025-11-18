@@ -1,5 +1,5 @@
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { ProviderAttribute, StringAttribute, UserPool, UserPoolClientIdentityProvider, UserPoolIdentityProviderFacebook, UserPoolIdentityProviderGoogle, UserPoolOperation } from 'aws-cdk-lib/aws-cognito';
+import { OAuthScope, ProviderAttribute, StringAttribute, UserPool, UserPoolClientIdentityProvider, UserPoolIdentityProviderFacebook, UserPoolIdentityProviderGoogle, UserPoolOperation } from 'aws-cdk-lib/aws-cognito';
 import { Runtime, Function, Code } from 'aws-cdk-lib/aws-lambda';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
@@ -62,16 +62,21 @@ export class IacStack extends Stack {
 
     // Domains
 
-    const domainPrefix = `1clickparish-auth`;
-    const domain = pool1.addDomain("CognitoDomain", {
-      cognitoDomain: { domainPrefix },
+    const domainPrefix1 = `1clickparish`;
+    const domainPrefix2 = `2clickparish`;
+    
+    const domain1 = pool1.addDomain("CognitoDomain", {
+      cognitoDomain: { domainPrefix: domainPrefix1 },
+    });
+    const domain2 = pool2.addDomain("CognitoDomain", {
+      cognitoDomain: { domainPrefix: domainPrefix2 },
     });
 
     // Client Secrets
 
-    const googleClientSecret1 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret1", "1clickparish/bullfrog").secretValue
-    const googleClientSecret2 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret2", "1clickparish/toadcow").secretValue
-    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/calftadpole:SecretString:clientSecret}}';
+    const googleClientSecret1 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret1", "1clickparish/google").secretValue
+    const googleClientSecret2 = Secret.fromSecretNameV2(this, "cognitoGoogleClientSecret2", "1clickparish/smackdog").secretValue
+    const facebookClientSecret = '{{resolve:secretsmanager:1clickparish/facebook:SecretString:clientSecret}}';
 
     // User Pool Identity Providers and dependencies
 
@@ -89,7 +94,7 @@ export class IacStack extends Stack {
     });
 
     const googleProvider2 = new UserPoolIdentityProviderGoogle(this, 'Google2', {
-      clientId: 'google-client-id',
+      clientId: 'google-2-client-id',
       userPool: pool2,
       clientSecretValue: googleClientSecret2,
       attributeMapping: {
@@ -98,7 +103,7 @@ export class IacStack extends Stack {
         familyName: ProviderAttribute.GOOGLE_FAMILY_NAME,
         fullname: ProviderAttribute.GOOGLE_NAME,
         custom: {
-          hd: ProviderAttribute.other('hd')
+          'custom:hd': ProviderAttribute.other('hd')
         },
       },
       scopes: ['profile', 'email', 'openid']
@@ -140,16 +145,22 @@ export class IacStack extends Stack {
       authSessionValidity: Duration.minutes(15),
       accessTokenValidity: Duration.minutes(15),
       idTokenValidity: Duration.minutes(15),
-      refreshTokenValidity: Duration.days(14)
+      refreshTokenValidity: Duration.days(14),
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes: [ OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE ],
+        callbackUrls: [ 'https://parish.inri.cc/org/callback' ],
+        logoutUrls: [ 'https://parish.inri.cc/' ]
+      }
     });
 
-    client1.node.addDependency(googleProvider1, facebookProvider, domain);
-    client2.node.addDependency(googleProvider2, domain);
+    client1.node.addDependency(googleProvider1, facebookProvider, domain1);
+    client2.node.addDependency(googleProvider2, domain2);
 
     // Client IDs
 
     // const clientId = client.userPoolClientId;
-    const clientId2 = client2.userPoolClientId;
+    // const clientId2 = client2.userPoolClientId;
 
     // Lambdas
 
@@ -157,9 +168,6 @@ export class IacStack extends Stack {
       runtime: Runtime.PYTHON_3_13,
       handler: 'index.handler',
       code: Code.fromAsset("lambda/av"),
-      environment: {
-        COGNITO_CLIENT_ID: clientId2
-      },
     });
 
     // Triggers
